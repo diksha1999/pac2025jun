@@ -1,0 +1,18 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: pr-pipeline
+  annotations:
+    pipelinesascode.tekton.dev/on-event: "[pull_request]"
+    pipelinesascode.tekton.dev/on-target-branch: "main"
+    pipelinesascode.tekton.dev/on-cel-expression: 'body.head.ref.startsWith("feat-")'
+spec:
+  pipelineSpec:
+    tasks:
+      - name: test-task
+        taskSpec:
+          steps:
+            - name: run-test
+              image: alpine/git
+              script: |
+                echo "The pipeline was triggered successfully!"
