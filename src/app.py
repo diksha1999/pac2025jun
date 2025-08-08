@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Simple Python application for testing PAC
+Simple Python application for testing PAC in Aug Month
 """
 
 def hello_world():
