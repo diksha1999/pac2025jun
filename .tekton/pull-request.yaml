@@ -1,63 +1,42 @@
-apiVersion: tekton.dev/v1
+apiVersion: tekton.dev/v1beta1
 kind: PipelineRun
 metadata:
-  name: .-pull-request
+  name: my-app-pipeline-run
   annotations:
-    # The event we are targeting as seen from the webhook payload
-    # this can be an array too, i.e: [pull_request, push]
-    pipelinesascode.tekton.dev/on-event: "[pull_request]"
-
-    # The branch or tag we are targeting (ie: main, refs/tags/*)
+    # This tells PAC when to trigger
+    pipelinesascode.tekton.dev/on-event: "[pull_request, push]"
     pipelinesascode.tekton.dev/on-target-branch: "[master]"
-
-    # Fetch the git-clone task from hub, we are able to reference later on it
-    # with taskRef and it will automatically be embedded into our pipeline.
-    pipelinesascode.tekton.dev/task: "git-clone"
-
-    # Use maven task from hub
-    #
-    # pipelinesascode.tekton.dev/task-1: "maven"
-
-    # You can add more tasks by increasing the suffix number, you can specify them as array to have multiple of them.
-    # browse the tasks you want to include from hub on https://hub.tekton.dev/
-    #
-    # pipelinesascode.tekton.dev/task-2: "[curl, buildah]"
-
-    # How many runs we want to keep.
     pipelinesascode.tekton.dev/max-keep-runs: "5"
 spec:
-  params:
-    # The variable with brackets are special to Pipelines as Code
-    # They will automatically be expanded with the events from Github.
-    - name: repo_url
-      value: "{{ repo_url }}"
-    - name: revision
-      value: "{{ revision }}"
   pipelineSpec:
     params:
-      - name: repo_url
+      - name: repo-url
+        type: string
       - name: revision
+        type: string
     workspaces:
       - name: source
-      - name: basic-auth
     tasks:
       - name: fetch-repository
         taskRef:
-          name: git-clone
+          resolver: cluster
+          params:
+          - name: kind
+            value: task
+          - name: name
+            value: git-clone
+          - name: namespace
+            value: openshift-pipelines
         workspaces:
           - name: output
             workspace: source
-          - name: basic-auth
-            workspace: basic-auth
         params:
-          - name: url
-            value: $(params.repo_url)
-          - name: revision
+          - name: URL
+            value: $(params.repo-url)
+          - name: REVISION
             value: $(params.revision)
-      # Customize this task if you like, or just do a taskRef
-      # to one of the hub task.
-      - name: noop-task
-        displayName: Task with no effect
+      # DEBUG: Check workspace contents
+      - name: debug-workspace
         runAfter:
           - fetch-repository
         workspaces:
@@ -67,11 +46,96 @@ spec:
           workspaces:
             - name: source
           steps:
-            - name: noop-task
-              image: registry.access.redhat.com/ubi9/ubi-micro
-              workingDir: $(workspaces.source.path)
+            - name: list-files
+              image: registry.access.redhat.com/ubi8/ubi-minimal:latest
               script: |
-                exit 0
+                #!/bin/bash
+                echo "=== Workspace Contents ==="
+                ls -la $(workspaces.source.path)
+                echo ""
+                echo "=== Looking for Dockerfile ==="
+                find $(workspaces.source.path) -name "Dockerfile*" -o -name "dockerfile*"
+                echo ""
+                echo "=== Current directory ==="
+                pwd
+      
+      - name: build
+        runAfter:
+          - debug-workspace
+        taskRef:
+          resolver: cluster
+          params:
+          - name: kind
+            value: task
+          - name: name
+            value: buildah
+          - name: namespace
+            value: openshift-pipelines
+        workspaces:
+          - name: source
+            workspace: source
+        params:
+          - name: IMAGE
+            value: "image-registry.openshift-image-registry.svc:5000/$(context.pipelineRun.namespace)/my-app:$(params.revision)"
+      
+      - name: deploy
+        runAfter:
+          - build
+        params:
+          - name: image
+            value: "image-registry.openshift-image-registry.svc:5000/$(context.pipelineRun.namespace)/my-app:$(params.revision)"
+          - name: app-name
+            value: "my-app"
+        taskSpec:
+          params:
+          - name: image
+            type: string
+          - name: app-name
+            type: string
+          steps:
+            - name: deploy
+              image: quay.io/openshift/origin-cli:latest
+              script: |
+                #!/bin/bash
+                set -e
+                
+                APP_NAME="$(params.app-name)"
+                IMAGE="$(params.image)"
+                
+                echo "Checking if deployment ${APP_NAME} exists..."
+                
+                if oc get deployment ${APP_NAME} 2>/dev/null; then
+                  echo "Deployment exists - updating image..."
+                  oc set image deployment/${APP_NAME} ${APP_NAME}=${IMAGE}
+                  oc rollout status deployment/${APP_NAME} --timeout=5m
+                else
+                  echo "Deployment does not exist - creating new deployment..."
+                  
+                  # Create deployment
+                  oc create deployment ${APP_NAME} --image=${IMAGE}
+                  
+                  # Expose as a service
+                  oc expose deployment ${APP_NAME} --port=8080
+                  
+                  # Create route
+                  oc expose service ${APP_NAME}
+                  
+                  # Wait for rollout
+                  oc rollout status deployment/${APP_NAME} --timeout=5m
+                  
+                  echo "---"
+                  echo "Deployment created successfully!"
+                  echo "Access your app at:"
+                  oc get route ${APP_NAME} -o jsonpath='http://{.spec.host}'
+                  echo ""
+                fi
+  
+  params:
+    - name: repo-url
+      value: "{{repo_url}}"
+    - name: revision
+      value: "{{revision}}"
+  
   workspaces:
     - name: source
       volumeClaimTemplate:
@@ -81,8 +145,3 @@ spec:
           resources:
             requests:
               storage: 1Gi
-    # This workspace will inject secret to help the git-clone task to be able to
-    # checkout the private repositories
-    - name: basic-auth
-      secret:
-        secretName: "{{ git_auth_secret }}"

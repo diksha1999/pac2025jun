@@ -1,0 +1,22 @@
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  name: simple-pipeline-run
+  annotations:
+    pipelinesascode.tekton.dev/on-event: "[pull_request, push]"
+    pipelinesascode.tekton.dev/on-target-branch: "[master]"
+spec:
+  pipelineSpec:
+    tasks:
+      - name: hello
+        taskSpec:
+          steps:
+            - name: echo
+              image: registry.access.redhat.com/ubi8/ubi-minimal:latest
+              script: |
+                #!/bin/sh
+                echo "Hello from PAC!"
+                echo "Repo: {{repo_url}}"
+                echo "Revision: {{revision}}"
+                echo "Source Branch: {{source_branch}}"
+                echo "Target Branch: {{target_branch}}"
