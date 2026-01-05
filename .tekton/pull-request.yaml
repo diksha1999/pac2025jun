@@ -32,13 +32,36 @@ spec:
             workspace: source
         params:
           - name: URL
-            value: $(params.repo-url)
+            value: https://github.com/openshift/pipelines-vote-ui.git
           - name: REVISION
             value: $(params.revision)
+      # DEBUG: Check workspace contents
+      - name: debug-workspace
+        runAfter:
+          - fetch-repository
+        workspaces:
+          - name: source
+            workspace: source
+        taskSpec:
+          workspaces:
+            - name: source
+          steps:
+            - name: list-files
+              image: registry.access.redhat.com/ubi8/ubi-minimal:latest
+              script: |
+                #!/bin/bash
+                echo "=== Workspace Contents ==="
+                ls -la $(workspaces.source.path)
+                echo ""
+                echo "=== Looking for Dockerfile ==="
+                find $(workspaces.source.path) -name "Dockerfile*" -o -name "dockerfile*"
+                echo ""
+                echo "=== Current directory ==="
+                pwd
       
       - name: build
         runAfter:
-          - fetch-repository
+          - debug-workspace
         taskRef:
           resolver: cluster
           params:
