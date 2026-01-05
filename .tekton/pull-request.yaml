@@ -81,6 +81,11 @@ spec:
       - name: deploy
         runAfter:
           - build
+        params:
+          - name: image
+            value: "image-registry.openshift-image-registry.svc:5000/$(context.pipelineRun.namespace)/my-app:$(params.revision)"
+          - name: app-name
+            value: "my-app"
         taskSpec:
           params:
           - name: image
@@ -130,10 +135,6 @@ spec:
       value: "{{repo_url}}"
     - name: revision
       value: "{{revision}}"
-    - name: image
-      value: "image-registry.openshift-image-registry.svc:5000/$(context.pipelineRun.namespace)/my-app:$(params.revision)"
-    - name: app-name
-      value: "my-app"
   
   workspaces:
     - name: source
