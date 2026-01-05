@@ -1,17 +1,25 @@
-FROM nginx:alpine
+FROM golang:1.21-alpine AS builder
 
-# Copy all static files to nginx html directory
-COPY . /usr/share/nginx/html
+WORKDIR /app
 
-# Expose port 8080 (OpenShift doesn't allow port 80)
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -o main .
+
+FROM alpine:latest
+
+RUN apk --no-cache add ca-certificates && \
+    adduser -D -u 1001 appuser
+
+WORKDIR /app
+COPY --from=builder /app/main .
+
+RUN chown appuser:appuser /app/main
+
+USER appuser
+
 EXPOSE 8080
 
-# Run nginx on port 8080
-RUN sed -i 's/listen       80;/listen       8080;/' /etc/nginx/conf.d/default.conf && \
-    sed -i 's/listen  \[::\]:80;/listen  [::]:8080;/' /etc/nginx/conf.d/default.conf && \
-    chmod -R g+rwX /var/cache/nginx /var/run /var/log/nginx && \
-    chown -R nginx:nginx /var/cache/nginx /var/run /var/log/nginx
-
-USER nginx
-
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["./main"]
