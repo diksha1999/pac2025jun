@@ -32,7 +32,7 @@ spec:
             workspace: source
         params:
           - name: URL
-            value: https://github.com/openshift/pipelines-vote-ui.git
+            value: $(params.repo-url)
           - name: REVISION
             value: $(params.revision)
       # DEBUG: Check workspace contents
