@@ -82,18 +82,58 @@ spec:
         runAfter:
           - build
         taskSpec:
+          params:
+          - name: image
+            type: string
+          - name: app-name
+            type: string
           steps:
             - name: deploy
               image: quay.io/openshift/origin-cli:latest
               script: |
                 #!/bin/bash
-                oc rollout restart deployment/my-app
+                set -e
+                
+                APP_NAME="$(params.app-name)"
+                IMAGE="$(params.image)"
+                
+                echo "Checking if deployment ${APP_NAME} exists..."
+                
+                if oc get deployment ${APP_NAME} 2>/dev/null; then
+                  echo "Deployment exists - updating image..."
+                  oc set image deployment/${APP_NAME} ${APP_NAME}=${IMAGE}
+                  oc rollout status deployment/${APP_NAME} --timeout=5m
+                else
+                  echo "Deployment does not exist - creating new deployment..."
+                  
+                  # Create deployment
+                  oc create deployment ${APP_NAME} --image=${IMAGE}
+                  
+                  # Expose as a service
+                  oc expose deployment ${APP_NAME} --port=8080
+                  
+                  # Create route
+                  oc expose service ${APP_NAME}
+                  
+                  # Wait for rollout
+                  oc rollout status deployment/${APP_NAME} --timeout=5m
+                  
+                  echo "---"
+                  echo "Deployment created successfully!"
+                  echo "Access your app at:"
+                  oc get route ${APP_NAME} -o jsonpath='http://{.spec.host}'
+                  echo ""
+                fi
   
   params:
     - name: repo-url
       value: "{{repo_url}}"
     - name: revision
       value: "{{revision}}"
+    - name: image
+      value: "image-registry.openshift-image-registry.svc:5000/$(context.pipelineRun.namespace)/my-app:$(params.revision)"
+    - name: app-name
+      value: "my-app"
   
   workspaces:
     - name: source
