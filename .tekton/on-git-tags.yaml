@@ -5,6 +5,8 @@ metadata:
   name: build-app
   annotations:
     pipelinesascode.tekton.dev/on-tag: "[v]*"
+    pipelinesascode.tekton.dev/on-comment: "[/test build-app tag:*]"
+    pipelinesascode.tekton.dev/on-cancel: "[/cancel build-app tag:*]"
     pipelinesascode.tekton.dev/max-keep-runs: "5"
 spec:
   pipelineSpec:
