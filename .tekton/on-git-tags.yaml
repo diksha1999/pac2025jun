@@ -1,0 +1,88 @@
+---
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: build-app
+  annotations:
+    pipelinesascode.tekton.dev/on-tag: "[v]*"
+    pipelinesascode.tekton.dev/max-keep-runs: "5"
+spec:
+  pipelineSpec:
+    params:
+      - name: repo-url
+        type: string
+      - name: tag-name
+        type: string
+      - name: revision
+        type: string
+    
+    workspaces:
+      - name: source
+    
+    tasks:
+      - name: fetch-repository
+        taskRef:
+          resolver: cluster
+          params:
+            - name: kind
+              value: task
+            - name: name
+              value: git-clone
+            - name: namespace
+              value: openshift-pipelines
+        params:
+          - name: url
+            value: $(params.repo-url)
+          - name: revision
+            value: $(params.revision)
+        workspaces:
+          - name: output
+            workspace: source
+      
+      - name: build-and-test
+        runAfter:
+          - fetch-repository
+        workspaces:
+          - name: source
+            workspace: source
+        taskSpec:
+          workspaces:
+            - name: source
+          steps:
+            - name: build
+              image: maven:3.8-openjdk-11
+              workingDir: $(workspaces.source.path)
+              script: |
+                #!/bin/bash
+                echo "Building application for tag: $(params.tag-name)"
+                # Add your build commands here
+                # mvn clean package
+                echo "Build completed successfully"
+            
+            - name: test
+              image: maven:3.8-openjdk-11
+              workingDir: $(workspaces.source.path)
+              script: |
+                #!/bin/bash
+                echo "Running tests for tag: $(params.tag-name)"
+                # Add your test commands here
+                # mvn test
+                echo "Tests completed successfully"
+  
+  params:
+    - name: repo-url
+      value: "{{ repo_url }}"
+    - name: tag-name
+      value: "{{ tag_name }}"
+    - name: revision
+      value: "{{ revision }}"
+  
+  workspaces:
+    - name: source
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 1Gi
