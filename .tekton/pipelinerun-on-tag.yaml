@@ -3,9 +3,9 @@ kind: PipelineRun
 metadata:
   name: pipelinerun-on-tag
   annotations:
-    pipelinesascode.tekton.dev/on-target-branch: "[refs/tags/v1.0.0]"
+    pipelinesascode.tekton.dev/on-target-branch: "[refs/tags/v*]"
     pipelinesascode.tekton.dev/on-event: "[push]"
-    pipelinesascode.tekton.dev/target-tag: "v1.0.0"
+    pipelinesascode.tekton.dev/target-tag: "tag"
 spec:
   pipelineSpec:
     tasks:
