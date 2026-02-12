@@ -1,0 +1,17 @@
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  name: pipelinerun-on-tag
+  annotations:
+    pipelinesascode.tekton.dev/on-target-branch: "[refs/tags/*]"
+    pipelinesascode.tekton.dev/on-event: "[push]"
+spec:
+  pipelineSpec:
+    tasks:
+      - name: tag-task
+        taskSpec:
+          steps:
+            - name: echo
+              image: registry.access.redhat.com/ubi10/ubi-micro
+              script: |
+                                echo "tag: {{ git_tag }}"
