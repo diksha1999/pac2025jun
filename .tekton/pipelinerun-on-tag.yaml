@@ -5,7 +5,7 @@ metadata:
   annotations:
     pipelinesascode.tekton.dev/on-target-branch: "[refs/tags/v1.0.0]"
     pipelinesascode.tekton.dev/on-event: "[push]"
-   # pipelinesascode.tekton.dev/target-tag: "v*"
+    pipelinesascode.tekton.dev/target-tag: "v1.0.0"
 spec:
   pipelineSpec:
     tasks:
