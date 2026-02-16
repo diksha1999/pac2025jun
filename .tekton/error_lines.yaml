@@ -1,0 +1,27 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: test-error-snippet
+  annotations:
+    pipelinesascode.tekton.dev/on-event: "[pull_request]"
+    pipelinesascode.tekton.dev/on-target-branch: "[main]"
+spec:
+  pipelineSpec:
+    tasks:
+      - name: generate-multi-line-error
+        taskSpec:
+          steps:
+            - name: produce-error
+              image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+              script: |
+                #!/bin/bash
+                echo "Line 1: Starting the process..."
+                echo "Line 2: Initializing components..."
+                echo "Line 3: Loading configuration..."
+                echo "Line 4: Connecting to service..."
+                echo "Line 5: Validating credentials..."
+                echo "Line 6: ERROR: Connection failed!"
+                echo "Line 7: ERROR: Unable to authenticate!"
+                echo "Line 8: ERROR: Critical failure - exiting!"
+                echo "Line 9: ERROR: Final exit!!!!!!"
+                exit 1
