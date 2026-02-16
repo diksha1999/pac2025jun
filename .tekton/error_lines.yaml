@@ -25,4 +25,9 @@ spec:
                 echo "Line 7: ERROR: Unable to authenticate!"
                 echo "Line 8: ERROR: Critical failure - exiting!"
                 echo "Line 9: ERROR: Final exit!!!!!!"
+                echo "Line 10: ERROR: Final exit!!!!!!"
+                echo "Line 11: ERROR: Final exit!!!!!!"
+                echo "Line 12: ERROR: Final exit!!!!!!"
+                echo "Line 13: ERROR: Final exit!!!!!!"
+                echo "Line 14: ERROR: Final exit!!!!!!"
                 exit 1
